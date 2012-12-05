@@ -6,29 +6,20 @@ import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nonnull;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 
-import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
 import hu.akarnokd.reactive4java.reactive.Observer;
-import hu.akarnokd.reactive4java.swing.ObservableMouseListener;
-import static hu.akarnokd.reactive4java.query.ObservableBuilder.from;
+import static common.FromEvent.mouseMoved;
 
 public class TimeFliesLikeAnArrow {
     public static void main(String[] args) {
         final JFrame f = makeFrame();
 
-        final ObservableBuilder<MouseEvent> mouseMove = from(ObservableMouseListener.register(f.getContentPane()))
-			.where(new Func1<MouseEvent, Boolean>() {
-				@Override
-				public Boolean invoke(MouseEvent mouseEvent) {
-					return mouseEvent.getID() == MouseEvent.MOUSE_MOVED;
-				}
-			});
+		final ObservableBuilder<MouseEvent> mouseMove = mouseMoved(f.getContentPane());
 
-        final String time = "TIME FLIES LIKE AN ARROW";
+		final String time = "TIME FLIES LIKE AN ARROW";
         for (int i = 0; i < time.length(); i++) {
 			final int lol_closure_i = i;
 
@@ -45,7 +36,7 @@ public class TimeFliesLikeAnArrow {
 				}
 
 				@Override
-				public void error(@Nonnull final Throwable ex) {
+				public void error(final Throwable ex) {
 				}
 
 				@Override
@@ -56,7 +47,7 @@ public class TimeFliesLikeAnArrow {
         f.setVisible(true);
     }
 
-    private static JFrame makeFrame() {
+	private static JFrame makeFrame() {
         final JFrame f = new JFrame();
         f.setSize(Toolkit.getDefaultToolkit().getScreenSize());
 		f.getContentPane().setLayout(new FlowLayout());
