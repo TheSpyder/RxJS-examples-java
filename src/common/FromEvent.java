@@ -33,6 +33,10 @@ public class FromEvent {
 		return filterMouseEvents(container, MouseEvent.MOUSE_MOVED);
 	}
 
+	public static ObservableBuilder<MouseEvent> mouseDragged(final Container container) {
+		return filterMouseEvents(container, MouseEvent.MOUSE_DRAGGED);
+	}
+
 	public static ObservableBuilder<MouseEvent> mouseReleased(final Container container) {
 		return filterMouseEvents(container, MouseEvent.MOUSE_RELEASED);
 	}
