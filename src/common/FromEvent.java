@@ -1,6 +1,7 @@
 package common;
 
 import java.awt.Container;
+import java.awt.Point;
 import java.awt.event.MouseEvent;
 
 import hu.akarnokd.reactive4java.base.Func1;
@@ -11,8 +12,16 @@ import static hu.akarnokd.reactive4java.query.ObservableBuilder.from;
 @SuppressWarnings("UnusedDeclaration")
 public class FromEvent {
 
+	//helper function to extract points from mouse events
+	public static final Func1<MouseEvent, Point> eventPoint = new Func1<MouseEvent, Point>() {
+		@Override
+		public Point invoke(final MouseEvent mouseEvent) {
+			return mouseEvent.getPoint();
+		}
+	};
+
 	// add .select(debugger) on any of the events to print when it happens
-	private static final Func1<MouseEvent,MouseEvent> debugger = new Func1<MouseEvent, MouseEvent>() {
+	private static final Func1<MouseEvent, MouseEvent> debugger = new Func1<MouseEvent, MouseEvent>() {
 		@Override
 		public MouseEvent invoke(final MouseEvent mouseEvent) {
 			System.out.println(mouseEvent);
