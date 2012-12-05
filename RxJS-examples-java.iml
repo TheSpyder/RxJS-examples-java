@@ -8,7 +8,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="reactive4java-read-only" />
-    <orderEntry type="library" name="lib" level="project" />
   </component>
 </module>
 
