@@ -2,10 +2,12 @@ package common;
 
 import java.awt.Container;
 import java.awt.Point;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 
 import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
+import hu.akarnokd.reactive4java.swing.ObservableKeyListener;
 import hu.akarnokd.reactive4java.swing.ObservableMouseListener;
 import static hu.akarnokd.reactive4java.query.ObservableBuilder.from;
 
@@ -45,6 +47,10 @@ public class FromEvent {
 		return filterMouseEvents(container, MouseEvent.MOUSE_PRESSED);
 	}
 
+	public static ObservableBuilder<KeyEvent> keyReleased(final Container container) {
+		return filterKeyEvents(container, KeyEvent.KEY_RELEASED);
+	}
+
 	private static ObservableBuilder<MouseEvent> filterMouseEvents(final Container container, final int event) {
 		return from(ObservableMouseListener.register(container))
 				.where(new Func1<MouseEvent, Boolean>() {
@@ -53,5 +59,15 @@ public class FromEvent {
 						return mouseEvent.getID() == event;
 					}
 				});
+	}
+
+	private static ObservableBuilder<KeyEvent> filterKeyEvents(final Container container, final int event) {
+		return from(ObservableKeyListener.register(container))
+			.where(new Func1<KeyEvent, Boolean>() {
+				@Override
+				public Boolean invoke(final KeyEvent keyEvent) {
+					return keyEvent.getID() == event;
+				}
+			});
 	}
 }
