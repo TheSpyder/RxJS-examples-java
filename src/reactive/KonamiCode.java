@@ -4,12 +4,12 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
-import java.util.Arrays;
-import java.util.List;
 
 import javax.swing.JFrame;
 
 import hu.akarnokd.reactive4java.base.Func1;
+import hu.akarnokd.reactive4java.base.Functions;
+import hu.akarnokd.reactive4java.query.ObservableBuilder;
 import hu.akarnokd.reactive4java.reactive.Observable;
 import hu.akarnokd.reactive4java.reactive.Observer;
 import static common.FromEvent.keyReleased;
@@ -17,7 +17,7 @@ import static hu.akarnokd.reactive4java.query.ObservableBuilder.from;
 
 public class KonamiCode {
 
-	private static final Integer[] codes = {
+	private static final ObservableBuilder<Integer> codes = from(
 		38, // up
 		38, // up
 		40, // down
@@ -28,7 +28,7 @@ public class KonamiCode {
 		39, // right
 		66, // b
 		65  // a
-	};
+	);
 
 	public static void main(String[] args) {
 		final JFrame f = makeFrame();
@@ -41,18 +41,13 @@ public class KonamiCode {
 				}
 			})
 			.window(10)
-			.selectMany(new Func1<List<Integer>, Observable<Boolean>>() {
+			.selectMany(new Func1<Observable<Integer>, Observable<Boolean>>() {
 				@Override
-				public Observable<Boolean> invoke(final List<Integer> keys) {
-					return from(Arrays.equals(codes, keys.toArray()));
+				public Observable<Boolean> invoke(final Observable<Integer> keys) {
+					return codes.sequenceEqual(keys);
 				}
 			})
-			.where(new Func1<Boolean, Boolean>() {
-				@Override
-				public Boolean invoke(final Boolean _) {
-					return _;
-				}
-			})
+			.where(Functions.<Boolean>identity())
 			.register(new Observer<Boolean>() {
 				@Override
 				public void next(final Boolean value) {
