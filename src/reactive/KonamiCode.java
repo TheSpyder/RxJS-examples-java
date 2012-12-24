@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 
+import hu.akarnokd.reactive4java.base.Effect1;
 import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.base.Functions;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
@@ -59,9 +60,9 @@ public class KonamiCode {
 			// where we match
 			.where(Functions.<Boolean>identity())
 			// print the result
-			.register(new DefaultObservable<Boolean>() {
+			.subscribe(new Effect1<Boolean>() {
 				@Override
-				public void next(final Boolean value) {
+				public void invoke(final Boolean _) {
 					showCode(f.getContentPane());
 				}
 			});

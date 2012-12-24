@@ -9,5 +9,6 @@ Unfortunately there's currently a few bugs in r4j:
 
  - delay() doesn't actually attach to the source observer, so "time flies like an arrow" doesn't do anything :)
  - window() spits out segmented windows of the given size, instead of sliding windows - so "konami code" is a bit dodgy :)
+ - subscribe() isn't implemented
 
 I've fixed these in my local copy, depending on whether my fixes for are accepted I may post the patch here as well.

@@ -11,10 +11,10 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 
+import hu.akarnokd.reactive4java.base.Effect1;
 import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
 import hu.akarnokd.reactive4java.reactive.Observable;
-import hu.akarnokd.reactive4java.reactive.Observer;
 import static common.FromEvent.mouseDragged;
 import static common.FromEvent.mouseMoved;
 import static common.FromEvent.mousePressed;
@@ -62,18 +62,10 @@ public class DragDrop {
 			}
 		});
 
-		mouseDrag.register(new Observer<Point>() {
+		mouseDrag.subscribe(new Effect1<Point>() {
 			@Override
-			public void next(final Point value) {
+			public void invoke(final Point value) {
 				text.setLocation(value);
-			}
-
-			@Override
-			public void error(final Throwable ex) {
-			}
-
-			@Override
-			public void finish() {
 			}
 		});
 

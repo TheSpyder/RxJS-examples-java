@@ -9,8 +9,8 @@ import java.util.concurrent.TimeUnit;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 
+import hu.akarnokd.reactive4java.base.Effect1;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
-import hu.akarnokd.reactive4java.reactive.Observer;
 import static common.FromEvent.mouseMoved;
 
 public class TimeFliesLikeAnArrow {
@@ -26,21 +26,12 @@ public class TimeFliesLikeAnArrow {
 			final JLabel character = new JLabel(time.substring(i, i + 1));
 			f.getContentPane().add(character);
 
-			//reactive java doesn't have subscribe
-            mouseMove.delay(i * 100, TimeUnit.MILLISECONDS).register(new Observer<MouseEvent>() {
+            mouseMove.delay(i * 100, TimeUnit.MILLISECONDS).subscribe(new Effect1<MouseEvent>() {
 				@Override
-				public void next(final MouseEvent e) {
+				public void invoke(final MouseEvent e) {
 					Point loc = e.getPoint();
 					int xLoc = loc.x + lol_closure_i * 10 + 15;
 					character.setLocation(xLoc, loc.y);
-				}
-
-				@Override
-				public void error(final Throwable ex) {
-				}
-
-				@Override
-				public void finish() {
 				}
 			});
         }
