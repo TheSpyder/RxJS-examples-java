@@ -1,0 +1,527 @@
+Index: ../reactive4java-read-only/src/hu/akarnokd/reactive4java/query/ObservableBuilder.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../reactive4java-read-only/src/hu/akarnokd/reactive4java/query/ObservableBuilder.java	(revision 375)
++++ ../reactive4java-read-only/src/hu/akarnokd/reactive4java/query/ObservableBuilder.java	(revision )
+@@ -15,8 +15,22 @@
+  */
+ package hu.akarnokd.reactive4java.query;
+ 
++import java.io.Closeable;
++import java.math.BigDecimal;
++import java.math.BigInteger;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.Comparator;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.Callable;
++import java.util.concurrent.TimeUnit;
++
++import javax.annotation.Nonnull;
++
+ import hu.akarnokd.reactive4java.base.Action0;
+ import hu.akarnokd.reactive4java.base.Action1;
++import hu.akarnokd.reactive4java.base.Effect1;
+ import hu.akarnokd.reactive4java.base.Func0;
+ import hu.akarnokd.reactive4java.base.Func1;
+ import hu.akarnokd.reactive4java.base.Func2;
+@@ -24,23 +38,13 @@
+ import hu.akarnokd.reactive4java.base.Option;
+ import hu.akarnokd.reactive4java.base.Scheduler;
+ import hu.akarnokd.reactive4java.interactive.Interactive;
++import hu.akarnokd.reactive4java.reactive.DefaultObservable;
+ import hu.akarnokd.reactive4java.reactive.GroupedObservable;
+ import hu.akarnokd.reactive4java.reactive.Observable;
+ import hu.akarnokd.reactive4java.reactive.Observer;
+ import hu.akarnokd.reactive4java.reactive.Reactive;
+ import hu.akarnokd.reactive4java.reactive.TimeInterval;
+ import hu.akarnokd.reactive4java.reactive.Timestamped;
+-import java.io.Closeable;
+-import java.math.BigDecimal;
+-import java.math.BigInteger;
+-import java.util.ArrayList;
+-import java.util.Collection;
+-import java.util.Comparator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.concurrent.Callable;
+-import java.util.concurrent.TimeUnit;
+-import javax.annotation.Nonnull;
+ 
+ /**
+  * Wrapper object around an {@code Observable} which
+@@ -783,6 +787,35 @@
+ 		return from(Reactive.buffer(o, bufferSize));
+ 	}
+ 	/**
++	 * Buffer the nodes as they become available and send them out in bufferSize chunks.
++	 * This variant creates a sliding window rather than sending distinct buffers.
++	 *
++	 * This differs from window() in that it is eager rather than lazy.
++	 *
++	 * The observers return a new and modifiable list of T on every next() call.
++	 * @param bufferSize the target buffer size
++	 * @return the observable of the list
++	 */
++	@Nonnull
++	public ObservableBuilder<List<T>> bufferWithCount(
++			final int bufferSize,
++			final int skip) {
++		//create a window (which is lazy) and make it eager, only returning if the results are valid
++		return window(bufferSize, skip)
++			.selectMany(new Func1<Observable<T>, Observable<List<T>>>() {
++				@Override
++				public Observable<List<T>> invoke(final Observable<T> ts) {
++					return from(ts).toList();
++				}
++			})
++			.where(new Func1<List<T>, Boolean>() {
++				@Override
++				public Boolean invoke(final List<T> ts) {
++					return !ts.isEmpty();
++				}
++			});
++	}
++	/**
+ 	 * Buffer the Ts of the source until the buffer reaches its capacity or the current time unit runs out.
+ 	 * Might result in empty list of Ts and might complete early when the source finishes before the time runs out.
+ 	 * It uses the default scheduler pool.
+@@ -1865,7 +1898,19 @@
+ 			@Nonnull final Scheduler pool) {
+ 		return from(Reactive.range(start, count, pool));
+ 	}
++
++	/**
++	 * Registers a function as an observer
++	 */
++	public Closeable subscribe(final Effect1<? super T> e) {
++		return register(new DefaultObservable<T>() {
+-	@Override
++			@Override
++			public void next(final T value) {
++				e.invoke(value);
++			}
++		});
++	}
++	@Override
+ 	public Closeable register(Observer<? super T> observer) {
+ 		return o.register(observer);
+ 	}
+@@ -3091,7 +3136,7 @@
+ 			final int skip,
+ 			final Scheduler scheduler
+ 	) {
+-		return from(Reactive.window(o, count, skip, scheduler));
++		return from(Reactive.window(o, count, skip));
+ 	}
+ 	/**
+ 	 * Projects each value of T into an observable which are closed by
+@@ -3136,7 +3181,7 @@
+ 			int count,
+ 			Scheduler scheduler
+ 	) {
+-		return from(Reactive.window(o, count, scheduler));
++		return from(Reactive.window(o, count));
+ 	}
+ 	/**
+ 	 * Project each of the source Ts into observable sequences separated by
+Index: ../reactive4java-read-only/src/hu/akarnokd/reactive4java/reactive/Reactive.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../reactive4java-read-only/src/hu/akarnokd/reactive4java/reactive/Reactive.java	(revision 375)
++++ ../reactive4java-read-only/src/hu/akarnokd/reactive4java/reactive/Reactive.java	(revision )
+@@ -16,25 +16,6 @@
+ 
+ package hu.akarnokd.reactive4java.reactive;
+ 
+-import static hu.akarnokd.reactive4java.base.Functions.and;
+-import hu.akarnokd.reactive4java.base.Action0;
+-import hu.akarnokd.reactive4java.base.Action1;
+-import hu.akarnokd.reactive4java.base.Actions;
+-import hu.akarnokd.reactive4java.base.CircularBuffer;
+-import hu.akarnokd.reactive4java.base.CloseableIterable;
+-import hu.akarnokd.reactive4java.base.CloseableIterator;
+-import hu.akarnokd.reactive4java.base.Closeables;
+-import hu.akarnokd.reactive4java.base.Func0;
+-import hu.akarnokd.reactive4java.base.Func1;
+-import hu.akarnokd.reactive4java.base.Func2;
+-import hu.akarnokd.reactive4java.base.Functions;
+-import hu.akarnokd.reactive4java.base.Option;
+-import hu.akarnokd.reactive4java.base.Pair;
+-import hu.akarnokd.reactive4java.base.Scheduler;
+-import hu.akarnokd.reactive4java.base.TooManyElementsException;
+-import hu.akarnokd.reactive4java.interactive.SingleContainer;
+-import hu.akarnokd.reactive4java.util.DefaultScheduler;
+-import hu.akarnokd.reactive4java.util.SingleLaneExecutor;
+ import java.io.Closeable;
+ import java.io.IOException;
+ import java.lang.reflect.Array;
+@@ -71,9 +52,30 @@
+ import java.util.concurrent.locks.ReadWriteLock;
+ import java.util.concurrent.locks.ReentrantLock;
+ import java.util.concurrent.locks.ReentrantReadWriteLock;
++
+ import javax.annotation.Nonnull;
+ import javax.annotation.concurrent.GuardedBy;
+ 
++import hu.akarnokd.reactive4java.base.Action0;
++import hu.akarnokd.reactive4java.base.Action1;
++import hu.akarnokd.reactive4java.base.Actions;
++import hu.akarnokd.reactive4java.base.CircularBuffer;
++import hu.akarnokd.reactive4java.base.CloseableIterable;
++import hu.akarnokd.reactive4java.base.CloseableIterator;
++import hu.akarnokd.reactive4java.base.Closeables;
++import hu.akarnokd.reactive4java.base.Func0;
++import hu.akarnokd.reactive4java.base.Func1;
++import hu.akarnokd.reactive4java.base.Func2;
++import hu.akarnokd.reactive4java.base.Functions;
++import hu.akarnokd.reactive4java.base.Option;
++import hu.akarnokd.reactive4java.base.Pair;
++import hu.akarnokd.reactive4java.base.Scheduler;
++import hu.akarnokd.reactive4java.base.TooManyElementsException;
++import hu.akarnokd.reactive4java.interactive.SingleContainer;
++import hu.akarnokd.reactive4java.util.DefaultScheduler;
++import hu.akarnokd.reactive4java.util.SingleLaneExecutor;
++import static hu.akarnokd.reactive4java.base.Functions.and;
++
+ /**
+  * Utility class with operators and helper methods for reactive programming with <code>Observable</code>s and <code>Observer</code>s.
+  * Guidances were taken from
+@@ -1476,66 +1478,65 @@
+ 		return new Observable<T>() {
+ 			@Override
+ 			public Closeable register(final Observer<? super T> observer) {
+-				DefaultObserver<T> obs = new DefaultObserver<T>(true) {
++                return source.register(new DefaultObserver<T>(true) {
+-					/** The outstanding requests. */
+-					final BlockingQueue<Closeable> outstanding = new LinkedBlockingQueue<Closeable>();
+-					@Override
+-					public void onClose() {
+-						List<Closeable> list = new LinkedList<Closeable>();
+-						outstanding.drainTo(list);
+-						for (Closeable c : list) {
+-							Closeables.close0(c);
+-						}
+-						super.close();
+-					}
++                    /** The outstanding requests. */
++                    final BlockingQueue<Closeable> outstanding = new LinkedBlockingQueue<Closeable>();
++                    @Override
++                    public void onClose() {
++                        List<Closeable> list = new LinkedList<Closeable>();
++                        outstanding.drainTo(list);
++                        for (Closeable c : list) {
++                            Closeables.close0(c);
++                        }
++                        super.close();
++                    }
+ 
+-					@Override
+-					public void onError(final Throwable ex) {
+-						Runnable r = new Runnable() {
+-							@Override
+-							public void run() {
+-								try {
+-									observer.error(ex);
+-									close();
+-								} finally {
+-									outstanding.poll();
+-								}
+-							}
+-						};
+-						outstanding.add(pool.schedule(r, time, unit));
+-					}
++                    @Override
++                    public void onError(final Throwable ex) {
++                        Runnable r = new Runnable() {
++                            @Override
++                            public void run() {
++                                try {
++                                    observer.error(ex);
++                                    close();
++                                } finally {
++                                    outstanding.poll();
++                                }
++                            }
++                        };
++                        outstanding.add(pool.schedule(r, time, unit));
++                    }
+ 
+-					@Override
+-					public void onFinish() {
+-						Runnable r = new Runnable() {
+-							@Override
+-							public void run() {
+-								try {
+-									observer.finish();
+-									close();
+-								} finally {
+-									outstanding.poll();
+-								}
+-							}
+-						};
+-						outstanding.add(pool.schedule(r, time, unit));
+-					}
+-					@Override
+-					public void onNext(final T value) {
+-						Runnable r = new Runnable() {
+-							@Override
+-							public void run() {
+-								try {
+-									observer.next(value);
+-								} finally {
+-									outstanding.poll();
+-								}
+-							}
+-						};
+-						outstanding.add(pool.schedule(r, time, unit));
+-					}
++                    @Override
++                    public void onFinish() {
++                        Runnable r = new Runnable() {
++                            @Override
++                            public void run() {
++                                try {
++                                    observer.finish();
++                                    close();
++                                } finally {
++                                    outstanding.poll();
++                                }
++                            }
++                        };
++                        outstanding.add(pool.schedule(r, time, unit));
++                    }
++                    @Override
++                    public void onNext(final T value) {
++                        Runnable r = new Runnable() {
++                            @Override
++                            public void run() {
++                                try {
++                                    observer.next(value);
++                                } finally {
++                                    outstanding.poll();
++                                }
++                            }
++                        };
++                        outstanding.add(pool.schedule(r, time, unit));
++                    }
+-				};
+-				return obs;
++                });
+ 			}
+ 		};
+ 	}
+@@ -5533,7 +5534,7 @@
+ 	 * @return the new observable
+ 	 */
+ 	public static <T, U> Observable<U> replay(
+-			final Observable<T> source,
++			final Observable<? extends T> source,
+ 			final Func1<? super Observable<? extends T>, ? extends Observable<U>> selector,
+ 			final int bufferSize,
+ 			final Scheduler scheduler
+@@ -7075,9 +7076,10 @@
+ 					protected int i = count;
+ 					@Override
+ 					protected void onNext(T value) {
++						if (--i < 0) {
++							close();
++						} else {
+-						observer.next(value);
++							observer.next(value);
+-						if (--i == 0) {
+-							finish();
+ 						}
+ 					}
+ 
+@@ -8559,7 +8561,7 @@
+ 			final Observable<? extends T> source,
+ 			int count
+ 	) {
+-		return window(source, count, 0, DEFAULT_SCHEDULER.get());
++		return window(source, count, 0);
+ 	}
+ 	/**
+ 	 * Project the source elements into observable windows of size <code>count</code>
+@@ -8572,65 +8574,30 @@
+ 	 */
+ 	public static <T> Observable<Observable<T>> window(
+ 			final Observable<? extends T> source,
+-			int count,
+-			int skip
+-	) {
+-		return window(source, count, skip, DEFAULT_SCHEDULER.get());
+-	}
+-	/**
+-	 * Project the source elements into observable windows of size <code>count</code>
+-	 * and skip some initial values.
+-	 * FIXME implement
+-	 * @param <T> the element type
+-	 * @param source the source of Ts
+-	 * @param count the count of elements
+-	 * @param skip the elements to skip
+-	 * @param scheduler the scheduler
+-	 * @return the new observable
+-	 */
+-	public static <T> Observable<Observable<T>> window(
+-			final Observable<? extends T> source,
+ 			final int count,
+-			final int skip,
+-			final Scheduler scheduler
++			final int skip
+ 	) {
+ 		return new Observable<Observable<T>>() {
+ 			@Override
+ 			public Closeable register(final Observer<? super Observable<T>> observer) {
+-				final AtomicReference<DefaultObservable<T>> current = new AtomicReference<DefaultObservable<T>>();
+-				final AtomicInteger counter = new AtomicInteger(0);
+-				DefaultObserverEx<T> o = new DefaultObserverEx<T>(true) {
++				final Queue<DefaultObservable<T>> observables = new LinkedBlockingQueue<DefaultObservable<T>>(count + 1);
++				return source.register(new DefaultObserver<T>(true) {
+ 					/** The elements to skip at first. */
+ 					int skipCount = skip;
+-					{
+-						registerTimer();
+-						add("source", source);
+-					}
+-					/**
+-					 * Create a new observable and reset the limit counter as well.
+-					 */
+-					void createNewObservable() {
+-						counter.set(count);
+-						DefaultObservable<T> d = current.get();
+-						if (d != null) {
+-							d.finish();
+-						}
+-						d = new DefaultObservable<T>();
+-						current.set(d);
+-						observer.next(d);
+-					}
+ 					@Override
+ 					protected void onError(Throwable ex) {
+-						remove("timer");
+-						DefaultObservable<T> d = current.get();
+-						d.error(ex);
++						for (DefaultObservable<T> o : observables) {
++							o.error(ex);
++						}
+ 						observer.error(ex);
++						observables.clear();
+ 					}
+ 					@Override
+ 					protected void onFinish() {
+-						remove("timer");
+-						DefaultObservable<T> d = current.get();
+-						d.finish();
++						for (DefaultObservable<T> o : observables) {
++							o.finish();
++						}
++						observables.clear();
+ 						observer.finish();
+ 					}
+ 
+@@ -8641,30 +8608,18 @@
+ 							return;
+ 						}
+ 
+-						if (counter.get() == 0 || current.get() == null) {
+-							createNewObservable();
+-						}
+-						counter.decrementAndGet();
+-						DefaultObservable<T> d = current.get();
+-						d.next(value);
+-					}
++						DefaultObservable<T> d = new DefaultObservable<T>();
++						observables.add(d);
++						observer.next(d);
+ 
+-					void registerTimer() {
+-						replace("timer", "timer", scheduler.schedule(
+-							new DefaultRunnable(lock) {
+-								@Override
+-								protected void onRun() {
+-									// first only
+-									if (current.get() == null) {
+-										createNewObservable();
++						for (DefaultObservable<T> observable : observables) {
++							observable.next(value);
+-									}
++						}
++						if (observables.size() == count) {
++							observables.poll().finish();
+-								}
++						}
+-							}, 0, TimeUnit.MILLISECONDS
+-						));
+ 					}
+-
+-				};
+-				return o;
++				});
+ 			}
+ 		};
+ 	}
+@@ -8689,6 +8644,7 @@
+ 	/**
+ 	 * Projects each value of T into an observable which are closed by
+ 	 * either the <code>count</code> limit or the elapsed timespan.
++	 * FIXME implementation of window is wrong, see above
+ 	 * @param <T> the element type
+ 	 * @param source the source of Ts
+ 	 * @param count the maximum count of the elements in each window
+@@ -8776,22 +8732,6 @@
+ 				return o;
+ 			}
+ 		};
+-	}
+-	/**
+-	 * Project the source elements into observable windows of size <code>count</code>
+-	 * and skip some initial values.
+-	 * @param <T> the element type
+-	 * @param source the source of Ts
+-	 * @param count the count of elements
+-	 * @param scheduler the scheduler
+-	 * @return the new observable
+-	 */
+-	public static <T> Observable<Observable<T>> window(
+-			final Observable<? extends T> source,
+-			int count,
+-			Scheduler scheduler
+-	) {
+-		return window(source, count, 0, scheduler);
+ 	}
+ 	/**
+ 	 * Project each of the source Ts into observable sequences separated by
+Index: ../reactive4java-read-only/src/hu/akarnokd/reactive4java/base/Effect1.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../reactive4java-read-only/src/hu/akarnokd/reactive4java/base/Effect1.java	(revision )
++++ ../reactive4java-read-only/src/hu/akarnokd/reactive4java/base/Effect1.java	(revision )
+@@ -0,0 +1,20 @@
++package hu.akarnokd.reactive4java.base;
++
++
++/**
++ * The function interface which takes one parameter and returns nothing.
++ * When <code>Effect1</code> is used in a method parameter declaration, you
++ * may consider using wildcards:
++ * <p><code>&lt;T> void someMethod(Effect11&lt;? super T> f);</code></p>
++ *
++ * @author spyder
++ * @param <Param1> the first parameter
++ */
++public interface Effect1<Param1> {
++	/**
++	 * The method that gets invoked with a parameter.
++	 * @param param1 the parameter value
++	 */
++	void invoke(Param1 param1);
++
++}
