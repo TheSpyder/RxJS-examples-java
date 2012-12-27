@@ -15,8 +15,7 @@ import hu.akarnokd.reactive4java.base.Effect1;
 import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
 import hu.akarnokd.reactive4java.reactive.Observable;
-import static common.FromEvent.mouseDragged;
-import static common.FromEvent.mouseMoved;
+import static common.FromEvent.mouseMovedAndDragged;
 import static common.FromEvent.mousePressed;
 import static common.FromEvent.mouseReleased;
 
@@ -33,7 +32,7 @@ public class DragDrop {
 		final ObservableBuilder<MouseEvent> mouseReleased = mouseReleased(contentPane);
 
 		// Java separates moves from drags
-		final ObservableBuilder<MouseEvent> mouseMove = mouseMoved(contentPane).merge(mouseDragged(contentPane));
+		final ObservableBuilder<MouseEvent> mouseMove = mouseMovedAndDragged(contentPane);
 
 		// Java doesn't bubble when you listen, so we have to listen on the parent and filter by clicks on the target
 		final ObservableBuilder<MouseEvent> mousePressed = mousePressed(contentPane).where(new Func1<MouseEvent, Boolean>() {

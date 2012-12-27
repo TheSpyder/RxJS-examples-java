@@ -23,8 +23,7 @@ import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.base.Pair;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
 import hu.akarnokd.reactive4java.reactive.Observable;
-import static common.FromEvent.mouseDragged;
-import static common.FromEvent.mouseMoved;
+import static common.FromEvent.mouseMovedAndDragged;
 import static common.FromEvent.mousePressed;
 import static common.FromEvent.mouseReleased;
 import static hu.akarnokd.reactive4java.query.ObservableBuilder.from;
@@ -53,7 +52,7 @@ public class CanvasPaint {
 		final Container panel = addImageToFrame(canvas, contentPane);
 
 		// Java separates moves from drags
-		ObservableBuilder<MouseEvent> mouseMove = mouseMoved(panel).merge(mouseDragged(panel));
+		ObservableBuilder<MouseEvent> mouseMove = mouseMovedAndDragged(panel);
 
 		// Calculate difference between two mouse moves
 		final ObservableBuilder<Pair<Point, Point>> mouseDiffs = mouseMove.bufferWithCount(2, 1).select(new Func1<List<MouseEvent>, Pair<Point, Point>>() {
