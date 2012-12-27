@@ -9,14 +9,13 @@ import java.awt.event.MouseEvent;
 
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.SwingUtilities;
 
 import hu.akarnokd.reactive4java.base.Effect1;
 import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
 import hu.akarnokd.reactive4java.reactive.Observable;
+import static common.FromEvent.detectMouseDownOn;
 import static common.FromEvent.mouseMovedAndDragged;
-import static common.FromEvent.mousePressed;
 import static common.FromEvent.mouseReleased;
 
 public class DragDrop {
@@ -31,17 +30,9 @@ public class DragDrop {
 
 		final ObservableBuilder<MouseEvent> mouseReleased = mouseReleased(contentPane);
 
-		// Java separates moves from drags
 		final ObservableBuilder<MouseEvent> mouseMove = mouseMovedAndDragged(contentPane);
+		final ObservableBuilder<MouseEvent> mousePressed = detectMouseDownOn(text, contentPane);
 
-		// Java doesn't bubble when you listen, so we have to listen on the parent and filter by clicks on the target
-		final ObservableBuilder<MouseEvent> mousePressed = mousePressed(contentPane).where(new Func1<MouseEvent, Boolean>() {
-			@Override
-			public Boolean invoke(final MouseEvent mouseEvent) {
-				Point point = SwingUtilities.convertMouseEvent(contentPane, mouseEvent, text).getPoint();
-				return text.contains(point.x, point.y);
-			}
-		});
 
 		final ObservableBuilder<Point> mouseDrag = mousePressed.selectMany(new Func1<MouseEvent, Observable<Point>>() {
 			@Override

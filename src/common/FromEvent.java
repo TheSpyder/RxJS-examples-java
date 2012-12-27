@@ -5,6 +5,8 @@ import java.awt.Point;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 
+import javax.swing.SwingUtilities;
+
 import hu.akarnokd.reactive4java.base.Func1;
 import hu.akarnokd.reactive4java.query.ObservableBuilder;
 import hu.akarnokd.reactive4java.swing.ObservableKeyListener;
@@ -31,16 +33,17 @@ public class FromEvent {
 		}
 	};
 
+	// Java separates moves from drags, combining them is generally more useful for Rx style
+	public static ObservableBuilder<MouseEvent> mouseMovedAndDragged(final Container container) {
+		return mouseMoved(container).merge(mouseDragged(container));
+	}
+
 	public static ObservableBuilder<MouseEvent> mouseMoved(final Container container) {
 		return filterMouseEvents(container, MouseEvent.MOUSE_MOVED);
 	}
 
 	public static ObservableBuilder<MouseEvent> mouseDragged(final Container container) {
 		return filterMouseEvents(container, MouseEvent.MOUSE_DRAGGED);
-	}
-
-	public static ObservableBuilder<MouseEvent> mouseMovedAndDragged(final Container container) {
-		return mouseMoved(container).merge(mouseDragged(container));
 	}
 
 	public static ObservableBuilder<MouseEvent> mouseReleased(final Container container) {
@@ -73,5 +76,16 @@ public class FromEvent {
 					return keyEvent.getID() == event;
 				}
 			});
+	}
+
+	public static ObservableBuilder<MouseEvent> detectMouseDownOn(final Container child, final Container parent) {
+		// Java doesn't bubble mouse events, so we have to listen on the parent and filter by clicks on the target
+		return mousePressed(parent).where(new Func1<MouseEvent, Boolean>() {
+			@Override
+			public Boolean invoke(final MouseEvent mouseEvent) {
+				Point point = SwingUtilities.convertMouseEvent(parent, mouseEvent, child).getPoint();
+				return child.contains(point.x, point.y);
+			}
+		});
 	}
 }
