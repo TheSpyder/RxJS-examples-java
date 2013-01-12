@@ -40,7 +40,6 @@ public class CanvasPaint {
 		ctx.setColor(Color.black);
 		ctx.setStroke(new BasicStroke(5));
 
-		// Java separates moves from drags
 		ObservableBuilder<MouseEvent> mouseMove = mouseMovedAndDragged(canvas);
 
 		// Calculate difference between two mouse moves
